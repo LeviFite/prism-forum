@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="page-hero mb-4">
+  <p class="eyebrow">Media Library</p>
+  <h1 class="display-title">All media posts in one catalog.</h1>
+  <p class="lead-copy mb-0">Images and videos are searchable through the unified all-media search engine.</p>
+</section>
+
+<section class="row g-3">
+  <% mediaPosts.forEach((media) => { %>
+    <div class="col-sm-6 col-xl-4 col-xxl-3" id="media-<%= media.id %>">
+      <article class="card border-0 shadow-sm h-100">
+        <div class="media-frame">
+          <% if (media.media_type === 'image') { %>
+            <img src="<%= media.media_url %>" alt="<%= media.title %>" class="w-100 h-100 object-fit-cover" />
+          <% } else { %>
+            <video src="<%= media.media_url %>" class="w-100 h-100 object-fit-cover" controls preload="metadata"></video>
+          <% } %>
+        </div>
+        <div class="card-body">
+          <h2 class="h5 mb-1"><%= media.title %></h2>
+          <p class="text-truncate-3 text-muted"><%= media.description %></p>
+          <div class="small text-muted d-flex justify-content-between">
+            <a href="/profile/<%= media.username %>">@<%= media.username %></a>
+            <span><%= formatDate(media.created_at) %></span>
+          </div>
+        </div>
+      </article>
+    </div>
+  <% }) %>
+</section>
+
+<%- include('partials/pagination', { paging, baseUrl: '/media?page=' }) %>
+
+<%- include('partials/footer') %>

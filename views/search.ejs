@@ -1,0 +1,83 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="page-hero mb-4">
+  <p class="eyebrow">All Media Search</p>
+  <h1 class="display-title">Search threads, media, reviews, users, and categories in one box.</h1>
+  <p class="lead-copy">
+    Fast indexed search is active via SQLite FTS<%= ftsEnabled ? '5' : ' fallback mode' %>.
+    Results update live while you type.
+  </p>
+
+  <form action="/search" method="GET" class="search-panel" id="searchForm">
+    <div class="input-group input-group-lg">
+      <span class="input-group-text"><span class="material-icons-round">search</span></span>
+      <input
+        id="searchInput"
+        type="search"
+        name="q"
+        class="form-control"
+        value="<%= query || '' %>"
+        placeholder="Search all cataloged forum content..."
+        autocomplete="off"
+      />
+      <button class="btn btn-accent" type="submit">Search</button>
+    </div>
+  </form>
+</section>
+
+<section id="liveSearchContainer" data-query="<%= query || '' %>">
+  <div id="liveSearchMeta" class="d-flex justify-content-between align-items-center mb-3">
+    <strong><%= query ? `${paging.totalItems} results` : 'Type to search instantly' %></strong>
+    <span class="text-muted small">Indexed across all media + forum content</span>
+  </div>
+
+  <div class="vstack gap-3" id="liveSearchResults">
+    <% results.forEach((result) => { %>
+      <article class="card border-0 shadow-sm search-result-item">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge text-bg-light text-uppercase"><%= result.kind %></span>
+              <a href="<%= result.url %>" class="h5 mb-0"><%= result.title %></a>
+            </div>
+            <small class="text-muted">@<%= result.author %> · <%= formatDate(result.created_at) %></small>
+          </div>
+          <p class="mb-1"><%= result.excerpt %></p>
+          <small class="text-muted">Category: <%= result.category %></small>
+        </div>
+      </article>
+    <% }) %>
+
+    <% if (results.length === 0 && query) { %>
+      <div class="card border-0 shadow-sm">
+        <div class="card-body py-5 text-center">
+          <p class="mb-0">No results found for "<%= query %>".</p>
+        </div>
+      </div>
+    <% } %>
+  </div>
+
+  <% if (paging) { %>
+    <%- include('partials/pagination', { paging, baseUrl: `/search?q=${encodeURIComponent(query)}&page=` }) %>
+  <% } %>
+</section>
+
+<template id="searchResultTemplate">
+  <article class="card border-0 shadow-sm search-result-item">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge text-bg-light text-uppercase" data-role="kind"></span>
+          <a href="#" class="h5 mb-0" data-role="title"></a>
+        </div>
+        <small class="text-muted" data-role="meta"></small>
+      </div>
+      <p class="mb-1" data-role="excerpt"></p>
+      <small class="text-muted" data-role="category"></small>
+    </div>
+  </article>
+</template>
+
+<%- include('partials/footer') %>

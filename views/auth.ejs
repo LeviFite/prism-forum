@@ -1,0 +1,65 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="row justify-content-center">
+  <div class="col-lg-10 col-xl-9">
+    <div class="auth-shell p-3 p-lg-4">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <article class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+              <p class="eyebrow mb-2">Login</p>
+              <h1 class="h3 mb-3">Welcome back</h1>
+
+              <form action="/auth/login" method="POST" class="vstack gap-3">
+                <div>
+                  <label for="identity" class="form-label">Username or Email</label>
+                  <input id="identity" type="text" name="identity" class="form-control" maxlength="100" required />
+                </div>
+                <div>
+                  <label for="loginPassword" class="form-label">Password</label>
+                  <input id="loginPassword" type="password" name="password" class="form-control" required />
+                </div>
+                <button class="btn btn-accent btn-lg" type="submit">Log In</button>
+              </form>
+
+              <p class="small text-muted mt-3 mb-0">Seeded test login: any seeded username + <code>password123</code></p>
+            </div>
+          </article>
+        </div>
+
+        <div class="col-md-6">
+          <article class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+              <p class="eyebrow mb-2">Sign Up</p>
+              <h2 class="h3 mb-3">Create account</h2>
+
+              <form action="/auth/signup" method="POST" class="vstack gap-3">
+                <div>
+                  <label for="signupDisplay" class="form-label">Display Name</label>
+                  <input id="signupDisplay" type="text" name="display_name" class="form-control" maxlength="60" required />
+                </div>
+                <div>
+                  <label for="signupUsername" class="form-label">Username</label>
+                  <input id="signupUsername" type="text" name="username" class="form-control" maxlength="30" required />
+                </div>
+                <div>
+                  <label for="signupEmail" class="form-label">Email</label>
+                  <input id="signupEmail" type="email" name="email" class="form-control" maxlength="100" required />
+                </div>
+                <div>
+                  <label for="signupPassword" class="form-label">Password</label>
+                  <input id="signupPassword" type="password" name="password" class="form-control" minlength="6" required />
+                </div>
+                <button class="btn btn-outline-accent btn-lg" type="submit">Create Account</button>
+              </form>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

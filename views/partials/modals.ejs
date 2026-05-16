@@ -1,0 +1,143 @@
+<% if (currentUser) { %>
+  <div class="modal fade" id="createThreadModal" tabindex="-1" aria-labelledby="createThreadLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content forum-modal">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title" id="createThreadLabel">Create New Thread</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form action="/threads" method="POST" class="vstack gap-3">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="categorySlug" class="form-label">Category</label>
+                <select id="categorySlug" name="category_slug" class="form-select" required>
+                  <% categories.forEach((cat) => { %>
+                    <option value="<%= cat.slug %>"><%= cat.name %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="topicTag" class="form-label">Topic Tag</label>
+                <select id="topicTag" name="topic_tag" class="form-select" required>
+                  <% forumTopics.forEach((topic) => { %>
+                    <option value="<%= topic %>"><%= topic %></option>
+                  <% }) %>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label for="threadTitle" class="form-label">Thread Title</label>
+              <input id="threadTitle" type="text" name="title" class="form-control" maxlength="140" required />
+            </div>
+
+            <div>
+              <label for="threadBody" class="form-label">Thread Body</label>
+              <textarea id="threadBody" name="body" class="form-control" rows="6" maxlength="12000" required></textarea>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label for="threadMediaType" class="form-label">Media Type</label>
+                <select id="threadMediaType" name="media_type" class="form-select">
+                  <option value="text">Text only</option>
+                  <option value="image">Image URL</option>
+                  <option value="video">Video URL</option>
+                </select>
+              </div>
+              <div class="col-md-8">
+                <label for="threadMediaUrl" class="form-label">Media URL (optional)</label>
+                <input id="threadMediaUrl" type="url" name="media_url" class="form-control" maxlength="500" placeholder="https://..." />
+              </div>
+            </div>
+
+            <button class="btn btn-accent btn-lg" type="submit">Publish Thread</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="uploadMediaModal" tabindex="-1" aria-labelledby="uploadMediaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content forum-modal">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title" id="uploadMediaLabel">Upload Media</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form action="/media/upload" method="POST" enctype="multipart/form-data" class="vstack gap-3">
+            <div>
+              <label for="mediaTitle" class="form-label">Title</label>
+              <input id="mediaTitle" type="text" name="title" class="form-control" maxlength="120" required />
+            </div>
+
+            <div>
+              <label for="mediaDescription" class="form-label">Description</label>
+              <textarea id="mediaDescription" name="description" class="form-control" rows="4" maxlength="6000" required></textarea>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label for="mediaType" class="form-label">Media Type</label>
+                <select id="mediaType" name="media_type" class="form-select">
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                </select>
+              </div>
+              <div class="col-md-8">
+                <label for="mediaUrl" class="form-label">Media URL (optional if uploading)</label>
+                <input id="mediaUrl" type="url" name="media_url" class="form-control" maxlength="500" placeholder="https://..." />
+              </div>
+            </div>
+
+            <div>
+              <label for="mediaFile" class="form-label">Upload File</label>
+              <input id="mediaFile" type="file" name="media_file" class="form-control" accept="image/*,video/*" />
+            </div>
+
+            <button class="btn btn-accent btn-lg" type="submit">Publish Media</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="createReviewModal" tabindex="-1" aria-labelledby="createReviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content forum-modal">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title" id="createReviewLabel">Post Review</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form action="/reviews" method="POST" class="vstack gap-3">
+            <div>
+              <label for="reviewTitle" class="form-label">Title</label>
+              <input id="reviewTitle" type="text" name="title" class="form-control" maxlength="120" required />
+            </div>
+
+            <div>
+              <label for="reviewBody" class="form-label">Review</label>
+              <textarea id="reviewBody" name="body" class="form-control" rows="5" maxlength="7000" required></textarea>
+            </div>
+
+            <div>
+              <label for="reviewRating" class="form-label">Rating</label>
+              <select id="reviewRating" name="rating" class="form-select" required>
+                <option value="5">5 - Excellent</option>
+                <option value="4">4 - Strong</option>
+                <option value="3">3 - Average</option>
+                <option value="2">2 - Weak</option>
+                <option value="1">1 - Poor</option>
+              </select>
+            </div>
+
+            <button class="btn btn-accent btn-lg" type="submit">Publish Review</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } %>

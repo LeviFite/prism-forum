@@ -1,0 +1,31 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="page-hero mb-4">
+  <p class="eyebrow">Help Center</p>
+  <h1 class="display-title">Forum guides, posting rules, and troubleshooting.</h1>
+  <p class="lead-copy mb-0">Lorem ipsum support docs for threads, media uploads, reviews, and profile customization.</p>
+</section>
+
+<div class="accordion forum-accordion" id="helpAccordion">
+  <% [
+    { q: 'How do I create a thread?', a: 'Log in, open the New Thread modal, choose category + topic, then publish.' },
+    { q: 'How does all-media search work?', a: 'The search page indexes threads, media, reviews, users, and categories in one index.' },
+    { q: 'How do I customize my profile?', a: 'Go to Edit Profile, set colors/theme/fonts, drag section order, and hide sections.' },
+    { q: 'How do uploads work?', a: 'Use the Upload modal to submit a URL or image/video file while logged in.' }
+  ].forEach((item, idx) => { %>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="heading<%= idx %>">
+        <button class="accordion-button <%= idx === 0 ? '' : 'collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<%= idx %>" aria-expanded="<%= idx === 0 ? 'true' : 'false' %>" aria-controls="collapse<%= idx %>">
+          <%= item.q %>
+        </button>
+      </h2>
+      <div id="collapse<%= idx %>" class="accordion-collapse collapse <%= idx === 0 ? 'show' : '' %>" aria-labelledby="heading<%= idx %>" data-bs-parent="#helpAccordion">
+        <div class="accordion-body"><%= item.a %></div>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<%- include('partials/footer') %>

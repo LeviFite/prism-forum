@@ -1,0 +1,56 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="page-hero mb-4">
+  <p class="eyebrow">Contact</p>
+  <h1 class="display-title">Contact the forum team.</h1>
+  <p class="lead-copy mb-0">Lorem ipsum placeholder support channel for users, creators, and affiliate partners.</p>
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <article class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5">
+        <form action="/contact" method="POST" class="vstack gap-3">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="contactName">Name</label>
+              <input id="contactName" type="text" name="name" class="form-control" maxlength="100" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="contactEmail">Email</label>
+              <input id="contactEmail" type="email" name="email" class="form-control" maxlength="100" required />
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label" for="contactSubject">Subject</label>
+            <input id="contactSubject" type="text" name="subject" class="form-control" maxlength="150" required />
+          </div>
+
+          <div>
+            <label class="form-label" for="contactMessage">Message</label>
+            <textarea id="contactMessage" name="message" class="form-control" rows="6" maxlength="5000" required></textarea>
+          </div>
+
+          <button class="btn btn-accent btn-lg" type="submit">Send Message</button>
+        </form>
+      </div>
+    </article>
+  </div>
+
+  <div class="col-lg-5">
+    <article class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Placeholder Contact Details</h2>
+        <p class="mb-1"><strong>Email:</strong> hello@prismforum.example</p>
+        <p class="mb-1"><strong>Partnerships:</strong> partners@prismforum.example</p>
+        <p class="mb-1"><strong>Support:</strong> support@prismforum.example</p>
+        <p class="mb-0"><strong>Response window:</strong> 24-48 hours</p>
+      </div>
+    </article>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

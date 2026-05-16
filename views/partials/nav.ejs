@@ -1,0 +1,63 @@
+<nav class="navbar navbar-expand-lg sticky-top forum-navbar shadow-sm">
+  <div class="container-xl">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+      <span class="material-icons-round brand-icon">auto_awesome</span>
+      <span class="brand-text">Prism Forum</span>
+    </a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-lg-1">
+        <li class="nav-item"><a class="nav-link" href="/categories">Categories</a></li>
+        <li class="nav-item"><a class="nav-link" href="/media">Media</a></li>
+        <li class="nav-item"><a class="nav-link" href="/reviews">Reviews</a></li>
+        <li class="nav-item"><a class="nav-link" href="/search">Search</a></li>
+        <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
+        <li class="nav-item"><a class="nav-link" href="/contact">Contact</a></li>
+        <li class="nav-item"><a class="nav-link" href="/affiliates">Affiliates</a></li>
+      </ul>
+
+      <form class="d-flex me-lg-3 search-mini-form" role="search" action="/search" method="GET">
+        <input class="form-control form-control-sm" type="search" name="q" placeholder="Quick search all media..." aria-label="Search" />
+      </form>
+
+      <% if (currentUser) { %>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-sm btn-accent d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#createThreadModal">
+            <span class="material-icons-round icon-sm">post_add</span>
+            New Thread
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-accent d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#uploadMediaModal">
+            <span class="material-icons-round icon-sm">upload_file</span>
+            Upload
+          </button>
+
+          <div class="dropdown">
+            <button class="btn btn-sm dropdown-toggle profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <img src="<%= currentUser.avatar_url %>" alt="avatar" class="avatar-xs" />
+              <span><%= currentUser.display_name %></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="/profile/<%= currentUser.username %>">My Profile</a></li>
+              <li><a class="dropdown-item" href="/settings/profile">Edit Profile</a></li>
+              <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#createReviewModal">Post Review</button></li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <form action="/auth/logout" method="POST">
+                  <button class="dropdown-item text-danger" type="submit">Log Out</button>
+                </form>
+              </li>
+            </ul>
+          </div>
+        </div>
+      <% } else { %>
+        <a href="/auth" class="btn btn-accent">Log In / Sign Up</a>
+      <% } %>
+    </div>
+  </div>
+</nav>
+
+<main class="container-xl py-4">

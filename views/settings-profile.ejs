@@ -1,0 +1,156 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="page-hero mb-4">
+  <p class="eyebrow">Profile Editor</p>
+  <h1 class="display-title">Customize your full profile appearance and layout.</h1>
+  <p class="lead-copy mb-0">Change colors, theme mode, fonts, visibility, and drag section order.</p>
+</section>
+
+<section class="row g-4">
+  <div class="col-xl-8">
+    <article class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5">
+        <form action="/settings/profile" method="POST" class="vstack gap-4" id="profileSettingsForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="setUsername">Username</label>
+              <input id="setUsername" name="username" class="form-control" maxlength="30" value="<%= user.username %>" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="setEmail">Email</label>
+              <input id="setEmail" type="email" name="email" class="form-control" maxlength="100" value="<%= user.email %>" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="setDisplay">Display Name</label>
+              <input id="setDisplay" name="display_name" class="form-control" maxlength="60" value="<%= user.display_name %>" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="setTheme">Theme Mode</label>
+              <select id="setTheme" name="theme_mode" class="form-select">
+                <option value="light" <%= user.theme_mode === 'light' ? 'selected' : '' %>>Light</option>
+                <option value="dark" <%= user.theme_mode === 'dark' ? 'selected' : '' %>>Dark</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label" for="setHeadline">Headline</label>
+            <input id="setHeadline" name="headline" class="form-control" maxlength="140" value="<%= user.headline %>" />
+          </div>
+
+          <div>
+            <label class="form-label" for="setBio">Bio</label>
+            <textarea id="setBio" name="bio" rows="5" maxlength="8000" class="form-control"><%= user.bio %></textarea>
+          </div>
+
+          <div>
+            <label class="form-label" for="setAvatar">Avatar URL</label>
+            <input id="setAvatar" type="url" name="avatar_url" class="form-control" maxlength="500" value="<%= user.avatar_url %>" />
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label" for="setAccent">Accent</label>
+              <input id="setAccent" type="color" name="accent_color" class="form-control form-control-color w-100" value="<%= user.accent_color %>" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="setBackground">Background</label>
+              <input id="setBackground" type="color" name="background_color" class="form-control form-control-color w-100" value="<%= user.background_color %>" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="setCard">Card</label>
+              <input id="setCard" type="color" name="card_color" class="form-control form-control-color w-100" value="<%= user.card_color %>" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="setText">Text</label>
+              <input id="setText" type="color" name="text_color" class="form-control form-control-color w-100" value="<%= user.text_color %>" />
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="setTitleFont">Title Font</label>
+              <select id="setTitleFont" name="title_font" class="form-select">
+                <% ['"Baloo 2"', '"Pacifico"', '"Caveat"', '"Montserrat"'].forEach((font) => { %>
+                  <option value="<%= font %>" <%= user.title_font === font ? 'selected' : '' %>><%= font %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="setBodyFont">Body Font</label>
+              <select id="setBodyFont" name="body_font" class="form-select">
+                <% ['"Montserrat"', '"Nunito"', '"Poppins"', '"Work Sans"'].forEach((font) => { %>
+                  <option value="<%= font %>" <%= user.body_font === font ? 'selected' : '' %>><%= font %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="h5">Section Order (Drag to Reorder)</h2>
+            <p class="small text-muted">This controls the layout of your public profile page.</p>
+            <ul class="list-group" id="sectionOrderList">
+              <% sectionOrder.forEach((section) => { %>
+                <li class="list-group-item d-flex justify-content-between align-items-center" data-section="<%= section %>">
+                  <span>
+                    <span class="material-icons-round align-middle me-1">drag_indicator</span>
+                    <%= section.replace('_', ' ') %>
+                  </span>
+                  <span class="badge text-bg-light text-uppercase">Section</span>
+                </li>
+              <% }) %>
+            </ul>
+            <input type="hidden" name="section_order" id="sectionOrderInput" value="<%= sectionOrder.join(',') %>" />
+          </div>
+
+          <div class="row g-2">
+            <div class="col-sm-6 col-lg-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="hideActivity" name="hide_activity" <%= user.hide_activity ? 'checked' : '' %> />
+                <label class="form-check-label" for="hideActivity">Hide Activity</label>
+              </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="hideMedia" name="hide_media" <%= user.hide_media ? 'checked' : '' %> />
+                <label class="form-check-label" for="hideMedia">Hide Media</label>
+              </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="hideReviews" name="hide_reviews" <%= user.hide_reviews ? 'checked' : '' %> />
+                <label class="form-check-label" for="hideReviews">Hide Reviews</label>
+              </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="hideBoard" name="hide_comment_board" <%= user.hide_comment_board ? 'checked' : '' %> />
+                <label class="form-check-label" for="hideBoard">Hide Comment Board</label>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-accent btn-lg" type="submit">Save Profile Settings</button>
+        </form>
+      </div>
+    </article>
+  </div>
+
+  <div class="col-xl-4">
+    <article class="card border-0 shadow-sm sticky-lg-top" style="top: 90px;">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Customization Tips</h2>
+        <ul class="mb-0">
+          <li>Use high contrast between text and background colors.</li>
+          <li>Keep About first if this is a portfolio-like profile.</li>
+          <li>Hide sections you are not actively using.</li>
+          <li>Preview quickly by opening your profile in a new tab.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

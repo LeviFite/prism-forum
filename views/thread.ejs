@@ -1,0 +1,86 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4 p-lg-5">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="/categories/<%= thread.category_slug %>" class="chip"><%= thread.category_name %></a>
+      <span class="chip chip-outline"><%= thread.topic_tag %></span>
+    </div>
+
+    <h1 class="display-title-sm"><%= thread.title %></h1>
+    <div class="d-flex flex-wrap gap-2 text-muted mb-4 small align-items-center">
+      <img src="<%= thread.avatar_url %>" alt="avatar" class="avatar-xs" />
+      <span>By <a href="/profile/<%= thread.username %>">@<%= thread.username %></a></span>
+      <span><%= formatDate(thread.created_at) %></span>
+    </div>
+
+    <p class="fs-5"><%= thread.body %></p>
+
+    <% if (thread.media_type === 'image' && thread.media_url) { %>
+      <img src="<%= thread.media_url %>" alt="thread media" class="img-fluid rounded-4 thread-media-large mt-3" />
+    <% } %>
+
+    <% if (thread.media_type === 'video' && thread.media_url) { %>
+      <video src="<%= thread.media_url %>" class="w-100 rounded-4 thread-media-large mt-3" controls preload="metadata"></video>
+    <% } %>
+  </div>
+</section>
+
+<section id="comments" class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="section-title mb-3">Thread Comments</h2>
+
+        <% if (currentUser) { %>
+          <form action="/threads/<%= thread.id %>/comments" method="POST" class="mb-4">
+            <label for="threadComment" class="form-label">Leave a comment</label>
+            <textarea id="threadComment" name="body" class="form-control mb-2" rows="4" maxlength="5000" required></textarea>
+            <button class="btn btn-accent" type="submit">Post Comment</button>
+          </form>
+        <% } else { %>
+          <div class="alert alert-light border mb-4">Please <a href="/auth">log in</a> to comment.</div>
+        <% } %>
+
+        <div class="vstack gap-3">
+          <% comments.forEach((comment) => { %>
+            <article class="comment-item">
+              <div class="d-flex align-items-center gap-2 mb-2 small text-muted">
+                <img src="<%= comment.avatar_url %>" alt="avatar" class="avatar-xs" />
+                <a href="/profile/<%= comment.username %>">@<%= comment.username %></a>
+                <span><%= formatDate(comment.created_at) %></span>
+              </div>
+              <p class="mb-0"><%= comment.body %></p>
+            </article>
+          <% }) %>
+          <% if (comments.length === 0) { %>
+            <p class="mb-0 text-muted">No comments yet.</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h3 class="h5 mb-3">Related Threads</h3>
+        <div class="list-group list-group-flush">
+          <% related.forEach((item) => { %>
+            <a href="/threads/<%= item.id %>" class="list-group-item list-group-item-action px-0">
+              <strong class="d-block"><%= item.title %></strong>
+              <small class="text-muted"><%= item.topic_tag %></small>
+            </a>
+          <% }) %>
+          <% if (related.length === 0) { %>
+            <p class="text-muted mb-0">No related threads found.</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

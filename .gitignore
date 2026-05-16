@@ -1,0 +1,5 @@
+node_modules/
+data/forum.db
+data/forum.db-*
+public/uploads/*
+!public/uploads/.gitkeep

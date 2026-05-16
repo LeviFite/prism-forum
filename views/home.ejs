@@ -1,0 +1,138 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="hero-card mb-4">
+  <div class="row g-4 align-items-center">
+    <div class="col-lg-7">
+      <p class="eyebrow">Online Media Sharing Forum</p>
+      <h1 class="display-title">A modern community hub for threads, media, and reviews.</h1>
+      <p class="lead-copy mb-4">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Browse 30+ categories, discover placeholder
+        discussions, and test full user profile customization.
+      </p>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="/categories" class="btn btn-accent btn-lg">Explore Categories</a>
+        <a href="/search" class="btn btn-outline-accent btn-lg">Search Everything</a>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="row g-3">
+        <div class="col-6">
+          <article class="stat-card">
+            <span class="material-icons-round">groups</span>
+            <strong><%= stats.users %></strong>
+            <p>Members</p>
+          </article>
+        </div>
+        <div class="col-6">
+          <article class="stat-card">
+            <span class="material-icons-round">forum</span>
+            <strong><%= stats.threads %></strong>
+            <p>Threads</p>
+          </article>
+        </div>
+        <div class="col-6">
+          <article class="stat-card">
+            <span class="material-icons-round">collections</span>
+            <strong><%= stats.media %></strong>
+            <p>Media Posts</p>
+          </article>
+        </div>
+        <div class="col-6">
+          <article class="stat-card">
+            <span class="material-icons-round">rate_review</span>
+            <strong><%= stats.reviews %></strong>
+            <p>Reviews</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="row g-4">
+  <div class="col-xl-8">
+    <div class="section-header d-flex justify-content-between align-items-center mb-3">
+      <h2 class="section-title mb-0">Latest Threads</h2>
+      <span class="text-muted small">Page <%= paging.page %> of <%= paging.totalPages %></span>
+    </div>
+
+    <div class="vstack gap-3">
+      <% threads.forEach((thread) => { %>
+        <article class="thread-card card border-0 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+              <div>
+                <a href="/threads/<%= thread.id %>" class="thread-link">
+                  <h3 class="h5 mb-1"><%= thread.title %></h3>
+                </a>
+                <div class="small text-muted d-flex flex-wrap gap-2 align-items-center">
+                  <span class="chip"><%= thread.category_name %></span>
+                  <span class="chip chip-outline"><%= thread.topic_tag %></span>
+                  <span>By <a href="/profile/<%= thread.username %>">@<%= thread.username %></a></span>
+                  <span><%= formatDate(thread.created_at) %></span>
+                </div>
+              </div>
+              <span class="badge text-bg-light"><%= thread.comment_count %> comments</span>
+            </div>
+
+            <p class="mb-2 text-truncate-3"><%= thread.body %></p>
+
+            <% if (thread.media_type === 'image' && thread.media_url) { %>
+              <img src="<%= thread.media_url %>" alt="thread media" class="img-fluid rounded-3 thread-media" />
+            <% } %>
+
+            <% if (thread.media_type === 'video' && thread.media_url) { %>
+              <video src="<%= thread.media_url %>" class="w-100 rounded-3 thread-media" controls muted preload="metadata"></video>
+            <% } %>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+
+    <%- include('partials/pagination', { paging, baseUrl: '/?page=' }) %>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h3 class="h5 mb-3">Trending Media</h3>
+        <div class="vstack gap-3">
+          <% latestMedia.forEach((media) => { %>
+            <a class="media-mini" href="/media#media-<%= media.id %>">
+              <div class="media-mini-thumb">
+                <% if (media.media_type === 'image') { %>
+                  <img src="<%= media.media_url %>" alt="media" />
+                <% } else { %>
+                  <video src="<%= media.media_url %>" muted></video>
+                <% } %>
+              </div>
+              <div>
+                <strong class="d-block"><%= media.title %></strong>
+                <small class="text-muted">@<%= media.username %></small>
+              </div>
+            </a>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h3 class="h5 mb-3">Top Categories</h3>
+        <div class="d-grid gap-2">
+          <% categories.slice(0, 10).forEach((cat) => { %>
+            <a href="/categories/<%= cat.slug %>" class="btn btn-light text-start d-flex justify-content-between align-items-center">
+              <span><%= cat.name %></span>
+              <span class="material-icons-round icon-sm"><%= cat.icon %></span>
+            </a>
+          <% }) %>
+          <a href="/categories" class="btn btn-outline-accent">View all categories</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

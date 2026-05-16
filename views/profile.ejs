@@ -1,0 +1,153 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section
+  class="profile-shell"
+  style="--profile-accent:<%= profile.accent_color %>;--profile-bg:<%= profile.background_color %>;--profile-card:<%= profile.card_color %>;--profile-text:<%= profile.text_color %>;--profile-title-font:<%= profile.title_font %>;--profile-body-font:<%= profile.body_font %>;"
+>
+  <header class="profile-header card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 p-lg-5">
+      <div class="d-flex flex-column flex-lg-row gap-4 align-items-lg-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+          <img src="<%= profile.avatar_url %>" alt="avatar" class="profile-avatar" />
+          <div>
+            <h1 class="display-title-sm mb-1"><%= profile.display_name %></h1>
+            <p class="mb-1 text-muted">@<%= profile.username %></p>
+            <p class="mb-0"><%= profile.headline || 'Lorem ipsum profile headline placeholder.' %></p>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="chip">Joined <%= formatDate(profile.created_at) %></span>
+          <% if (isOwner) { %>
+            <a href="/settings/profile" class="btn btn-accent">Edit Profile</a>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <% visibleSections.forEach((section) => { %>
+    <% if (section === 'about') { %>
+      <article class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="section-title">About</h2>
+          <p class="mb-0"><%= profile.bio || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. This profile has placeholder content.' %></p>
+        </div>
+      </article>
+    <% } %>
+
+    <% if (section === 'activity') { %>
+      <article class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="section-title">Recent Activity</h2>
+          <div class="list-group list-group-flush">
+            <% activity.forEach((item) => { %>
+              <div class="list-group-item px-0 d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                  <% if (item.type === 'thread') { %>
+                    <a href="/threads/<%= item.ref_id %>">Thread: <%= item.label %></a>
+                  <% } %>
+                  <% if (item.type === 'media') { %>
+                    <a href="/media#media-<%= item.ref_id %>">Media: <%= item.label %></a>
+                  <% } %>
+                  <% if (item.type === 'review') { %>
+                    <a href="/reviews#review-<%= item.ref_id %>">Review: <%= item.label %></a>
+                  <% } %>
+                </div>
+                <small class="text-muted"><%= formatDate(item.created_at) %></small>
+              </div>
+            <% }) %>
+            <% if (activity.length === 0) { %>
+              <p class="text-muted mb-0">No recent activity yet.</p>
+            <% } %>
+          </div>
+        </div>
+      </article>
+    <% } %>
+
+    <% if (section === 'media') { %>
+      <article class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="section-title">Media Showcase</h2>
+          <div class="row g-3">
+            <% recentMedia.forEach((item) => { %>
+              <div class="col-sm-6 col-xl-4">
+                <a class="profile-media-card" href="/media#media-<%= item.id %>">
+                  <% if (item.media_type === 'image') { %>
+                    <img src="<%= item.media_url %>" alt="<%= item.title %>" class="w-100 h-100 object-fit-cover" />
+                  <% } else { %>
+                    <video src="<%= item.media_url %>" class="w-100 h-100 object-fit-cover" muted></video>
+                  <% } %>
+                  <span><%= item.title %></span>
+                </a>
+              </div>
+            <% }) %>
+            <% if (recentMedia.length === 0) { %>
+              <p class="text-muted mb-0">No media uploaded yet.</p>
+            <% } %>
+          </div>
+        </div>
+      </article>
+    <% } %>
+
+    <% if (section === 'reviews') { %>
+      <article class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="section-title">Review Highlights</h2>
+          <div class="row g-3">
+            <% recentReviews.forEach((review) => { %>
+              <div class="col-lg-6">
+                <article class="review-mini p-3">
+                  <h3 class="h6 mb-1"><a href="/reviews#review-<%= review.id %>"><%= review.title %></a></h3>
+                  <p class="small mb-1"><%= review.body.slice(0, 140) %>...</p>
+                  <small class="text-muted"><%= '★'.repeat(review.rating) %> · <%= formatDate(review.created_at) %></small>
+                </article>
+              </div>
+            <% }) %>
+            <% if (recentReviews.length === 0) { %>
+              <p class="text-muted mb-0">No reviews posted yet.</p>
+            <% } %>
+          </div>
+        </div>
+      </article>
+    <% } %>
+
+    <% if (section === 'comment_board') { %>
+      <article class="card border-0 shadow-sm mb-4" id="comment-board">
+        <div class="card-body p-4">
+          <h2 class="section-title">Comment Board</h2>
+
+          <% if (currentUser) { %>
+            <form action="/profile/<%= profile.username %>/comment-board" method="POST" class="mb-3">
+              <label for="profileComment" class="form-label">Write on this profile</label>
+              <textarea id="profileComment" name="body" class="form-control mb-2" rows="4" maxlength="3000" required></textarea>
+              <button class="btn btn-accent" type="submit">Post to Comment Board</button>
+            </form>
+          <% } else { %>
+            <p class="text-muted">Please <a href="/auth">log in</a> to post on this comment board.</p>
+          <% } %>
+
+          <div class="vstack gap-3">
+            <% commentBoard.forEach((comment) => { %>
+              <article class="comment-item">
+                <div class="d-flex align-items-center gap-2 mb-1 small text-muted">
+                  <img src="<%= comment.avatar_url %>" alt="avatar" class="avatar-xs" />
+                  <a href="/profile/<%= comment.username %>">@<%= comment.username %></a>
+                  <span><%= formatDate(comment.created_at) %></span>
+                </div>
+                <p class="mb-0"><%= comment.body %></p>
+              </article>
+            <% }) %>
+            <% if (commentBoard.length === 0) { %>
+              <p class="text-muted mb-0">No comments on the board yet.</p>
+            <% } %>
+          </div>
+        </div>
+      </article>
+    <% } %>
+  <% }) %>
+</section>
+
+<%- include('partials/footer') %>

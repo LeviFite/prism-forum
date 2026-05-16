@@ -1,0 +1,51 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="page-hero mb-4">
+  <p class="eyebrow">Category</p>
+  <h1 class="display-title d-flex align-items-center gap-2">
+    <span class="material-icons-round"><%= category.icon %></span>
+    <span><%= category.name %></span>
+  </h1>
+  <p class="lead-copy mb-0"><%= category.description %></p>
+</section>
+
+<section class="vstack gap-3">
+  <% threads.forEach((thread) => { %>
+    <article class="thread-card card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+          <div>
+            <a href="/threads/<%= thread.id %>" class="thread-link"><h2 class="h5 mb-1"><%= thread.title %></h2></a>
+            <div class="small text-muted d-flex gap-2 flex-wrap">
+              <span class="chip chip-outline"><%= thread.topic_tag %></span>
+              <span>By <a href="/profile/<%= thread.username %>">@<%= thread.username %></a></span>
+              <span><%= formatDate(thread.created_at) %></span>
+            </div>
+          </div>
+          <span class="badge text-bg-light"><%= thread.comment_count %> comments</span>
+        </div>
+        <p class="mb-2 text-truncate-3"><%= thread.body %></p>
+        <% if (thread.media_type === 'image' && thread.media_url) { %>
+          <img src="<%= thread.media_url %>" alt="thread image" class="img-fluid rounded-3 thread-media" />
+        <% } %>
+        <% if (thread.media_type === 'video' && thread.media_url) { %>
+          <video src="<%= thread.media_url %>" class="w-100 rounded-3 thread-media" controls muted preload="metadata"></video>
+        <% } %>
+      </div>
+    </article>
+  <% }) %>
+
+  <% if (threads.length === 0) { %>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <p class="mb-0">No threads yet in this category.</p>
+      </div>
+    </div>
+  <% } %>
+
+  <%- include('partials/pagination', { paging, baseUrl: `/categories/${category.slug}?page=` }) %>
+</section>
+
+<%- include('partials/footer') %>

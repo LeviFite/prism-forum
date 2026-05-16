@@ -1,0 +1,49 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%- include('partials/alerts') %>
+
+<section class="page-hero mb-4">
+  <p class="eyebrow">Search Architecture</p>
+  <h1 class="display-title">Recommended all-media search approach for this forum.</h1>
+  <p class="lead-copy mb-0">Current implementation uses SQLite FTS5 for local speed and simple operations.</p>
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <article class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5">
+        <h2 class="h4">Best Starting Stack</h2>
+        <p>
+          For an all-media forum at this size, SQLite FTS5 is the best practical baseline: fast, lightweight,
+          no extra search cluster, and full support for indexing threads, media metadata, user profiles,
+          reviews, and categories.
+        </p>
+
+        <h2 class="h4">When to Upgrade</h2>
+        <ul>
+          <li>Move to PostgreSQL + <code>tsvector</code> when writes/concurrency grow.</li>
+          <li>Use OpenSearch/Elasticsearch when you need typo tolerance, faceting, and semantic ranking at scale.</li>
+        </ul>
+
+        <h2 class="h4">Implementation Notes</h2>
+        <ul class="mb-0">
+          <li>Keep one normalized search document per item (<code>kind + ref_id + title + body + author + category</code>).</li>
+          <li>Re-index on writes and on seed.</li>
+          <li>Serve a low-latency JSON endpoint for live search input.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+
+  <div class="col-lg-4">
+    <article class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h3 class="h5">Current Status</h3>
+        <p class="mb-2">FTS mode: <strong><%= ftsEnabled ? 'Enabled' : 'Fallback LIKE Search' %></strong></p>
+        <p class="mb-0">Use <a href="/search">the search page</a> to test real-time results.</p>
+      </div>
+    </article>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

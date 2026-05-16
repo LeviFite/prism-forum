@@ -1,0 +1,22 @@
+<% if (paging && paging.totalPages > 1) { %>
+  <nav aria-label="Pagination" class="mt-4">
+    <ul class="pagination justify-content-center forum-pagination mb-0">
+      <li class="page-item <%= paging.hasPrev ? '' : 'disabled' %>">
+        <a class="page-link" href="<%= paging.hasPrev ? `${baseUrl}${paging.page - 1}` : '#' %>">Previous</a>
+      </li>
+
+      <% const windowSize = 2; %>
+      <% const start = Math.max(1, paging.page - windowSize); %>
+      <% const end = Math.min(paging.totalPages, paging.page + windowSize); %>
+      <% for (let p = start; p <= end; p += 1) { %>
+        <li class="page-item <%= p === paging.page ? 'active' : '' %>">
+          <a class="page-link" href="<%= `${baseUrl}${p}` %>"><%= p %></a>
+        </li>
+      <% } %>
+
+      <li class="page-item <%= paging.hasNext ? '' : 'disabled' %>">
+        <a class="page-link" href="<%= paging.hasNext ? `${baseUrl}${paging.page + 1}` : '#' %>">Next</a>
+      </li>
+    </ul>
+  </nav>
+<% } %>
