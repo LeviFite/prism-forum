@@ -1,11 +1,33 @@
 {
-  "name": "media-sharing-forum",
+  "name": "@levifite/prism-forum",
   "version": "1.0.0",
   "description": "Full-stack media sharing forum with auth, profiles, categories, reviews, uploads, and live search.",
   "main": "server.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LeviFite/prism-forum.git"
+  },
+  "homepage": "https://github.com/LeviFite/prism-forum#readme",
+  "bugs": {
+    "url": "https://github.com/LeviFite/prism-forum/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "server.js",
+    "src/**/*.js",
+    "views/**/*.ejs",
+    "public/css/**/*.css",
+    "public/js/**/*.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test:package": "node scripts/smoke-package.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

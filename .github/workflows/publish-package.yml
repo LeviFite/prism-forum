@@ -1,0 +1,70 @@
+name: Publish GitHub package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
+          registry-url: https://npm.pkg.github.com
+          scope: '@levifite'
+          package-manager-cache: false
+      - name: Check release version
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          node -e 'const expected = `v${require("./package.json").version}`; if (process.env.RELEASE_TAG !== expected) throw new Error(`Release tag must be ${expected}`);'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build package
+        id: package
+        run: |
+          npm pack --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/package-info.json"
+          node -e 'const fs = require("fs"); const path = require("path"); const [pkg] = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "package-info.json"), "utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT, `archive=${path.join(process.env.RUNNER_TEMP, pkg.filename)}\n`);'
+      - name: Verify packaged application
+        env:
+          PACKAGE_ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: npm run test:package -- "$PACKAGE_ARCHIVE"
+      - name: Publish to GitHub Packages
+        if: github.event_name == 'release'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: npm publish "$PACKAGE_ARCHIVE" --registry=https://npm.pkg.github.com
+      - name: Verify published version
+        if: github.event_name == 'release'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGE_SPEC=$(node -p 'const pkg = require("./package.json"); `${pkg.name}@${pkg.version}`')
+          npm view "$PACKAGE_SPEC" version dist.integrity --json --registry=https://npm.pkg.github.com > "$RUNNER_TEMP/published-package.json"
+          node -e 'const assert = require("assert/strict"); const path = require("path"); const [built] = require(path.join(process.env.RUNNER_TEMP, "package-info.json")); const published = require(path.join(process.env.RUNNER_TEMP, "published-package.json")); assert.equal(published.version, built.version); assert.equal(published["dist.integrity"], built.integrity); console.log(`Verified published ${built.name}@${built.version} matches the tested archive`);'
+      - name: Attach package to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          PACKAGE_ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: gh release upload "$RELEASE_TAG" "$PACKAGE_ARCHIVE" --clobber
