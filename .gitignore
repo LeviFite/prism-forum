@@ -1,4 +1,8 @@
 node_modules/
+.DS_Store
+.env
+.env.*
+!.env.example
 data/forum.db
 data/forum.db-*
 public/uploads/*
