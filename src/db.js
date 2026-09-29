@@ -1,20 +1,90 @@
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
+const { createClient } = require('@libsql/client');
 const { categories } = require('./constants');
 const { seedIfNeeded } = require('./seed');
 
-const dataDir = path.join(__dirname, '..', 'data');
-const dbPath = path.join(dataDir, 'forum.db');
+function resolveDatabaseUrl() {
+  // Turso (recommended for Vercel): set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.
+  if (process.env.TURSO_DATABASE_URL) {
+    return process.env.TURSO_DATABASE_URL;
+  }
 
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+  // Local dev keeps using a repo-local SQLite file, exactly like before.
+  // On Vercel the filesystem is ephemeral, so a local file database is not
+  // viable there: fail fast with a clear message instead of silently booting
+  // an empty database that vanishes between invocations.
+  if (process.env.VERCEL) {
+    throw new Error(
+      'TURSO_DATABASE_URL is required on Vercel. Create a free Turso database and set ' +
+        'TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in the Vercel project environment variables.'
+    );
+  }
+
+  const dir = path.join(__dirname, '..', 'data');
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  return `file:${path.join(dir, 'forum.db')}`;
 }
 
-const db = new Database(dbPath);
-db.pragma('journal_mode = WAL');
+const client = createClient({
+  url: resolveDatabaseUrl(),
+  authToken: process.env.TURSO_AUTH_TOKEN || undefined
+});
 
-db.exec(`
+function toJs(value) {
+  if (typeof value === 'bigint') {
+    const num = Number(value);
+    return Number.isSafeInteger(num) ? num : value;
+  }
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value);
+  }
+  return value;
+}
+
+function normalizeRow(row) {
+  if (Array.isArray(row)) {
+    return row.map(toJs);
+  }
+  const out = {};
+  for (const key of Object.keys(row)) {
+    out[key] = toJs(row[key]);
+  }
+  return out;
+}
+
+async function get(sql, args = []) {
+  const rs = await client.execute({ sql, args });
+  const row = rs.rows[0];
+  return row === undefined ? undefined : normalizeRow(row);
+}
+
+async function all(sql, args = []) {
+  const rs = await client.execute({ sql, args });
+  return rs.rows.map(normalizeRow);
+}
+
+async function run(sql, args = []) {
+  const rs = await client.execute({ sql, args });
+  const id = rs.lastInsertRowid;
+  return {
+    changes: Number(rs.rowsAffected || 0),
+    lastInsertRowid: id === undefined || id === null ? undefined : toJs(id)
+  };
+}
+
+async function batch(statements) {
+  if (!statements.length) {
+    return [];
+  }
+  return client.batch(statements);
+}
+
+const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS categories (
     slug TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -128,163 +198,162 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_user ON media_posts(user_id);
   CREATE INDEX IF NOT EXISTS idx_profile_comments_profile ON profile_comments(profile_user_id);
   CREATE INDEX IF NOT EXISTS idx_search_documents_kind_ref ON search_documents(kind, ref_id);
-`);
+`;
 
-let ftsEnabled = true;
-try {
-  db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
-      kind,
-      ref_id UNINDEXED,
-      title,
-      body,
-      author,
-      category,
-      tokenize='porter unicode61'
-    );
-  `);
-} catch (error) {
-  ftsEnabled = false;
-}
+const FTS_SQL = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
+    kind,
+    ref_id UNINDEXED,
+    title,
+    body,
+    author,
+    category,
+    tokenize='porter unicode61'
+  );
+`;
 
-const upsertCategory = db.prepare(`
+const UPSERT_CATEGORY_SQL = `
   INSERT INTO categories (slug, name, description, icon)
-  VALUES (@slug, @name, @description, @icon)
+  VALUES (?, ?, ?, ?)
   ON CONFLICT(slug) DO UPDATE SET
     name = excluded.name,
     description = excluded.description,
     icon = excluded.icon
-`);
+`;
 
-const syncCategories = db.transaction(() => {
-  categories.forEach((category) => {
-    upsertCategory.run(category);
-  });
-});
+let ftsEnabled = true;
+let initialized = false;
+let didSeed = false;
 
-syncCategories();
-const seeded = seedIfNeeded(db);
-
-function addDocument(insertDoc, insertFts, document) {
-  const row = insertDoc.run(document);
-
-  if (ftsEnabled) {
-    insertFts.run({
-      rowid: row.lastInsertRowid,
-      ...document
-    });
-  }
+function isFtsEnabled() {
+  return ftsEnabled;
 }
 
-function rebuildSearchIndex() {
-  const insertDoc = db.prepare(`
-    INSERT INTO search_documents (kind, ref_id, title, body, author, category, created_at)
-    VALUES (@kind, @ref_id, @title, @body, @author, @category, @created_at)
-  `);
+async function syncCategories() {
+  await batch(
+    categories.map((category) => ({
+      sql: UPSERT_CATEGORY_SQL,
+      args: [category.slug, category.name, category.description, category.icon]
+    }))
+  );
+}
 
-  const insertFts = ftsEnabled
-    ? db.prepare(`
-      INSERT INTO search_index (rowid, kind, ref_id, title, body, author, category)
-      VALUES (@rowid, @kind, @ref_id, @title, @body, @author, @category)
-    `)
-    : null;
+async function rebuildSearchIndex() {
+  const docs = [];
 
-  const tx = db.transaction(() => {
-    db.prepare('DELETE FROM search_documents').run();
-
-    if (ftsEnabled) {
-      db.prepare('DELETE FROM search_index').run();
-    }
-
-    db.prepare('SELECT slug, name, description FROM categories ORDER BY name').all().forEach((category) => {
-      addDocument(insertDoc, insertFts, {
-        kind: 'category',
-        ref_id: category.slug,
-        title: category.name,
-        body: category.description,
-        author: 'system',
-        category: category.slug,
-        created_at: new Date().toISOString()
-      });
+  const categoryRows = await all('SELECT slug, name, description FROM categories ORDER BY name');
+  categoryRows.forEach((category) => {
+    docs.push({
+      kind: 'category',
+      ref_id: category.slug,
+      title: category.name,
+      body: category.description,
+      author: 'system',
+      category: category.slug,
+      created_at: new Date().toISOString()
     });
-
-    db.prepare(`
-      SELECT id, username, display_name, headline, bio, created_at
-      FROM users
-      ORDER BY id
-    `)
-      .all()
-      .forEach((user) => {
-        addDocument(insertDoc, insertFts, {
-          kind: 'user',
-          ref_id: String(user.id),
-          title: user.display_name,
-          body: `${user.headline || ''} ${user.bio || ''}`.trim(),
-          author: user.username,
-          category: 'profiles',
-          created_at: user.created_at
-        });
-      });
-
-    db.prepare(`
-      SELECT t.id, t.title, t.body, t.category_slug, t.created_at, u.username
-      FROM threads t
-      JOIN users u ON u.id = t.user_id
-      ORDER BY t.id
-    `)
-      .all()
-      .forEach((thread) => {
-        addDocument(insertDoc, insertFts, {
-          kind: 'thread',
-          ref_id: String(thread.id),
-          title: thread.title,
-          body: thread.body,
-          author: thread.username,
-          category: thread.category_slug,
-          created_at: thread.created_at
-        });
-      });
-
-    db.prepare(`
-      SELECT r.id, r.title, r.body, r.created_at, u.username
-      FROM reviews r
-      JOIN users u ON u.id = r.user_id
-      ORDER BY r.id
-    `)
-      .all()
-      .forEach((review) => {
-        addDocument(insertDoc, insertFts, {
-          kind: 'review',
-          ref_id: String(review.id),
-          title: review.title,
-          body: review.body,
-          author: review.username,
-          category: 'reviews',
-          created_at: review.created_at
-        });
-      });
-
-    db.prepare(`
-      SELECT m.id, m.title, m.description, m.created_at, u.username, m.media_type
-      FROM media_posts m
-      JOIN users u ON u.id = m.user_id
-      ORDER BY m.id
-    `)
-      .all()
-      .forEach((media) => {
-        addDocument(insertDoc, insertFts, {
-          kind: 'media',
-          ref_id: String(media.id),
-          title: media.title,
-          body: `${media.media_type} ${media.description}`,
-          author: media.username,
-          category: 'media',
-          created_at: media.created_at
-        });
-      });
   });
 
-  tx();
+  const userRows = await all(
+    'SELECT id, username, display_name, headline, bio, created_at FROM users ORDER BY id'
+  );
+  userRows.forEach((user) => {
+    docs.push({
+      kind: 'user',
+      ref_id: String(user.id),
+      title: user.display_name,
+      body: `${user.headline || ''} ${user.bio || ''}`.trim(),
+      author: user.username,
+      category: 'profiles',
+      created_at: user.created_at
+    });
+  });
+
+  const threadRows = await all(
+    `SELECT t.id, t.title, t.body, t.category_slug, t.created_at, u.username
+     FROM threads t
+     JOIN users u ON u.id = t.user_id
+     ORDER BY t.id`
+  );
+  threadRows.forEach((thread) => {
+    docs.push({
+      kind: 'thread',
+      ref_id: String(thread.id),
+      title: thread.title,
+      body: thread.body,
+      author: thread.username,
+      category: thread.category_slug,
+      created_at: thread.created_at
+    });
+  });
+
+  const reviewRows = await all(
+    `SELECT r.id, r.title, r.body, r.created_at, u.username
+     FROM reviews r
+     JOIN users u ON u.id = r.user_id
+     ORDER BY r.id`
+  );
+  reviewRows.forEach((review) => {
+    docs.push({
+      kind: 'review',
+      ref_id: String(review.id),
+      title: review.title,
+      body: review.body,
+      author: review.username,
+      category: 'reviews',
+      created_at: review.created_at
+    });
+  });
+
+  const mediaRows = await all(
+    `SELECT m.id, m.title, m.description, m.created_at, u.username, m.media_type
+     FROM media_posts m
+     JOIN users u ON u.id = m.user_id
+     ORDER BY m.id`
+  );
+  mediaRows.forEach((media) => {
+    docs.push({
+      kind: 'media',
+      ref_id: String(media.id),
+      title: media.title,
+      body: `${media.media_type} ${media.description}`,
+      author: media.username,
+      category: 'media',
+      created_at: media.created_at
+    });
+  });
+
+  const statements = [{ sql: 'DELETE FROM search_documents', args: [] }];
+  if (ftsEnabled) {
+    statements.push({ sql: 'DELETE FROM search_index', args: [] });
+  }
+  docs.forEach((doc) => {
+    statements.push({
+      sql: `INSERT INTO search_documents (kind, ref_id, title, body, author, category, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [doc.kind, doc.ref_id, doc.title, doc.body, doc.author, doc.category, doc.created_at]
+    });
+  });
+  await batch(statements);
+
+  if (ftsEnabled && docs.length) {
+    // Rows come back in insertion order, matching the docs array.
+    const idRows = await all('SELECT id FROM search_documents ORDER BY id');
+    await batch(
+      idRows.map((row, index) => ({
+        sql: 'INSERT INTO search_index (rowid, kind, ref_id, title, body, author, category) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        args: [
+          row.id,
+          docs[index].kind,
+          docs[index].ref_id,
+          docs[index].title,
+          docs[index].body,
+          docs[index].author,
+          docs[index].category
+        ]
+      }))
+    );
+  }
 }
 
 function toFtsQuery(text) {
@@ -296,7 +365,7 @@ function toFtsQuery(text) {
   return tokens.map((token) => `${token.replace(/'/g, "''")}*`).join(' OR ');
 }
 
-function searchAll(query, limit = 24, offset = 0) {
+async function searchAll(query, limit = 24, offset = 0) {
   const term = (query || '').trim();
   if (!term) {
     return { total: 0, results: [] };
@@ -307,26 +376,22 @@ function searchAll(query, limit = 24, offset = 0) {
 
     if (ftsQuery) {
       try {
-        const results = db
-          .prepare(`
-            SELECT d.kind, d.ref_id, d.title, d.body, d.author, d.category, d.created_at
-            FROM search_index s
-            JOIN search_documents d ON d.id = s.rowid
-            WHERE s MATCH ?
-            ORDER BY bm25(s), datetime(d.created_at) DESC
-            LIMIT ? OFFSET ?
-          `)
-          .all(ftsQuery, limit, offset);
+        const results = await all(
+          `SELECT d.kind, d.ref_id, d.title, d.body, d.author, d.category, d.created_at
+           FROM search_index s
+           JOIN search_documents d ON d.id = s.rowid
+           WHERE s MATCH ?
+           ORDER BY bm25(s), datetime(d.created_at) DESC
+           LIMIT ? OFFSET ?`,
+          [ftsQuery, limit, offset]
+        );
 
-        const total = db
-          .prepare(`
-            SELECT COUNT(*) AS count
-            FROM search_index s
-            WHERE s MATCH ?
-          `)
-          .get(ftsQuery).count;
+        const totalRow = await get(
+          'SELECT COUNT(*) AS count FROM search_index s WHERE s MATCH ?',
+          [ftsQuery]
+        );
 
-        return { total, results };
+        return { total: totalRow ? totalRow.count : 0, results };
       } catch (error) {
         // Fall back to LIKE search for malformed FTS expressions.
       }
@@ -334,41 +399,56 @@ function searchAll(query, limit = 24, offset = 0) {
   }
 
   const like = `%${term}%`;
-  const whereClause = `
-    title LIKE @like OR
-    body LIKE @like OR
-    author LIKE @like OR
-    category LIKE @like
-  `;
+  const whereArgs = [like, like, like, like];
 
-  const results = db
-    .prepare(`
-      SELECT kind, ref_id, title, body, author, category, created_at
-      FROM search_documents
-      WHERE ${whereClause}
-      ORDER BY datetime(created_at) DESC
-      LIMIT @limit OFFSET @offset
-    `)
-    .all({ like, limit, offset });
+  const results = await all(
+    `SELECT kind, ref_id, title, body, author, category, created_at
+     FROM search_documents
+     WHERE title LIKE ? OR body LIKE ? OR author LIKE ? OR category LIKE ?
+     ORDER BY datetime(created_at) DESC
+     LIMIT ? OFFSET ?`,
+    [...whereArgs, limit, offset]
+  );
 
-  const total = db
-    .prepare(`
-      SELECT COUNT(*) AS count
-      FROM search_documents
-      WHERE ${whereClause}
-    `)
-    .get({ like }).count;
+  const totalRow = await get(
+    `SELECT COUNT(*) AS count
+     FROM search_documents
+     WHERE title LIKE ? OR body LIKE ? OR author LIKE ? OR category LIKE ?`,
+    whereArgs
+  );
 
-  return { total, results };
+  return { total: totalRow ? totalRow.count : 0, results };
 }
 
-rebuildSearchIndex();
+async function initDb() {
+  if (initialized) {
+    return { seeded: didSeed };
+  }
+
+  await client.executeMultiple(SCHEMA_SQL);
+
+  try {
+    await client.execute(FTS_SQL);
+  } catch (error) {
+    ftsEnabled = false;
+  }
+
+  await syncCategories();
+  didSeed = await seedIfNeeded({ get, all, batch });
+  await rebuildSearchIndex();
+
+  initialized = true;
+  return { seeded: didSeed };
+}
 
 module.exports = {
-  db,
-  seeded,
-  categories,
-  ftsEnabled,
+  initDb,
+  get,
+  all,
+  run,
+  batch,
   rebuildSearchIndex,
-  searchAll
+  searchAll,
+  categories,
+  isFtsEnabled
 };

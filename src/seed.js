@@ -37,8 +37,53 @@ function buildBody(seed) {
   ].join(' ');
 }
 
-function insertFakeUsers(db) {
-  const now = Date.now();
+const INSERT_USER_SQL = `
+  INSERT INTO users (
+    username, email, password_hash, display_name, headline, bio,
+    avatar_url, theme_mode, accent_color, background_color, card_color,
+    text_color, title_font, body_font, section_order,
+    hide_activity, hide_media, hide_reviews, hide_comment_board, created_at
+  ) VALUES (
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?, ?, ?
+  )
+`;
+
+const INSERT_THREAD_SQL = `
+  INSERT INTO threads (
+    user_id, category_slug, topic_tag, title, body, media_type, media_url, created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`;
+
+const INSERT_COMMENT_SQL = `
+  INSERT INTO thread_comments (thread_id, user_id, body, created_at)
+  VALUES (?, ?, ?, ?)
+`;
+
+const INSERT_REVIEW_SQL = `
+  INSERT INTO reviews (user_id, title, body, rating, created_at)
+  VALUES (?, ?, ?, ?, ?)
+`;
+
+const INSERT_MEDIA_SQL = `
+  INSERT INTO media_posts (user_id, title, description, media_type, media_url, created_at)
+  VALUES (?, ?, ?, ?, ?, ?)
+`;
+
+const INSERT_PROFILE_COMMENT_SQL = `
+  INSERT INTO profile_comments (profile_user_id, author_user_id, body, created_at)
+  VALUES (?, ?, ?, ?)
+`;
+
+// The seed only ever runs against an empty users table. User and thread ids
+// are queried back between phases (like the original implementation) instead
+// of being assumed, so seeding stays correct even if the id sequences do not
+// start at 1.
+function buildUserStatements(now) {
+  const statements = [];
+
   const baseUsers = [
     {
       username: 'aurora_admin',
@@ -114,177 +159,137 @@ function insertFakeUsers(db) {
     }
   ];
 
-  const insertUser = db.prepare(`
-    INSERT INTO users (
-      username, email, password_hash, display_name, headline, bio,
-      avatar_url, theme_mode, accent_color, background_color, card_color,
-      text_color, title_font, body_font, section_order,
-      hide_activity, hide_media, hide_reviews, hide_comment_board, created_at
-    ) VALUES (
-      @username, @email, @password_hash, @display_name, @headline, @bio,
-      @avatar_url, @theme_mode, @accent_color, @background_color, @card_color,
-      @text_color, @title_font, @body_font, @section_order,
-      @hide_activity, @hide_media, @hide_reviews, @hide_comment_board, @created_at
-    )
-  `);
-
   const hashed = bcrypt.hashSync('password123', 10);
 
   baseUsers.forEach((user, i) => {
-    insertUser.run({
-      ...user,
-      password_hash: hashed,
-      avatar_url: `https://placehold.co/240x240/png?text=${encodeURIComponent(user.display_name.split(' ')[0])}`,
-      title_font: '"Baloo 2"',
-      body_font: '"Montserrat"',
-      section_order: 'about,activity,media,reviews,comment_board',
-      hide_activity: 0,
-      hide_media: 0,
-      hide_reviews: i % 5 === 0 ? 1 : 0,
-      hide_comment_board: 0,
-      created_at: new Date(now - i * 86400000).toISOString()
+    statements.push({
+      sql: INSERT_USER_SQL,
+      args: [
+        user.username,
+        user.email,
+        hashed,
+        user.display_name,
+        user.headline,
+        user.bio,
+        `https://placehold.co/240x240/png?text=${encodeURIComponent(user.display_name.split(' ')[0])}`,
+        user.theme_mode,
+        user.accent_color,
+        user.background_color,
+        user.card_color,
+        user.text_color,
+        '"Baloo 2"',
+        '"Montserrat"',
+        'about,activity,media,reviews,comment_board',
+        0,
+        0,
+        i % 5 === 0 ? 1 : 0,
+        0,
+        new Date(now - i * 86400000).toISOString()
+      ]
     });
   });
+
+  return statements;
 }
 
-function insertFakeThreads(db) {
-  const userIds = db.prepare('SELECT id FROM users ORDER BY id').all().map((row) => row.id);
-  const insertThread = db.prepare(`
-    INSERT INTO threads (
-      user_id, category_slug, topic_tag, title, body, media_type, media_url, created_at
-    ) VALUES (
-      @user_id, @category_slug, @topic_tag, @title, @body, @media_type, @media_url, @created_at
-    )
-  `);
-
+function buildThreadStatements(userIds, now) {
+  const statements = [];
   let seed = 0;
-  const created = [];
-  const now = Date.now();
-
   for (let i = 0; i < 90; i += 1) {
     const category = pick(categories, i);
     const userId = pick(userIds, i);
     const topic = pick(forumTopics, i * 2);
     const mediaType = i % 3 === 0 ? 'image' : i % 5 === 0 ? 'video' : 'text';
 
-    const info = {
-      user_id: userId,
-      category_slug: category.slug,
-      topic_tag: topic,
-      title: `${topic}: Placeholder thread #${i + 1}`,
-      body: buildBody(seed),
-      media_type: mediaType,
-      media_url:
+    statements.push({
+      sql: INSERT_THREAD_SQL,
+      args: [
+        userId,
+        category.slug,
+        topic,
+        `${topic}: Placeholder thread #${i + 1}`,
+        buildBody(seed),
+        mediaType,
         mediaType === 'image' ? pick(imagePool, i) : mediaType === 'video' ? pick(videoPool, i) : null,
-      created_at: new Date(now - i * 7200000).toISOString()
-    };
-
-    const result = insertThread.run(info);
-    created.push(result.lastInsertRowid);
+        new Date(now - i * 7200000).toISOString()
+      ]
+    });
     seed += 1;
   }
 
-  const insertComment = db.prepare(`
-    INSERT INTO thread_comments (thread_id, user_id, body, created_at)
-    VALUES (@thread_id, @user_id, @body, @created_at)
-  `);
-
-  created.slice(0, 60).forEach((threadId, i) => {
-    insertComment.run({
-      thread_id: threadId,
-      user_id: pick(userIds, i + 1),
-      body: `Great thread. ${buildBody(i + 1)}`,
-      created_at: new Date(now - i * 3600000).toISOString()
-    });
-
-    insertComment.run({
-      thread_id: threadId,
-      user_id: pick(userIds, i + 2),
-      body: `Second viewpoint here. ${buildBody(i + 2)}`,
-      created_at: new Date(now - i * 3200000).toISOString()
-    });
-  });
+  return statements;
 }
 
-function insertFakeReviews(db) {
-  const userIds = db.prepare('SELECT id FROM users ORDER BY id').all().map((row) => row.id);
-  const insert = db.prepare(`
-    INSERT INTO reviews (user_id, title, body, rating, created_at)
-    VALUES (@user_id, @title, @body, @rating, @created_at)
-  `);
+function buildContentStatements(userIds, threadIds, now) {
+  const statements = [];
 
-  const now = Date.now();
-  for (let i = 0; i < 36; i += 1) {
-    insert.run({
-      user_id: pick(userIds, i),
-      title: `Placeholder review #${i + 1}`,
-      body: buildBody(i),
-      rating: (i % 5) + 1,
-      created_at: new Date(now - i * 5400000).toISOString()
+  for (let i = 0; i < 60; i += 1) {
+    const threadId = threadIds[i % threadIds.length];
+    statements.push({
+      sql: INSERT_COMMENT_SQL,
+      args: [threadId, pick(userIds, i + 1), `Great thread. ${buildBody(i + 1)}`, new Date(now - i * 3600000).toISOString()]
+    });
+    statements.push({
+      sql: INSERT_COMMENT_SQL,
+      args: [threadId, pick(userIds, i + 2), `Second viewpoint here. ${buildBody(i + 2)}`, new Date(now - i * 3200000).toISOString()]
     });
   }
-}
 
-function insertFakeMedia(db) {
-  const userIds = db.prepare('SELECT id FROM users ORDER BY id').all().map((row) => row.id);
-  const insert = db.prepare(`
-    INSERT INTO media_posts (user_id, title, description, media_type, media_url, created_at)
-    VALUES (@user_id, @title, @description, @media_type, @media_url, @created_at)
-  `);
+  for (let i = 0; i < 36; i += 1) {
+    statements.push({
+      sql: INSERT_REVIEW_SQL,
+      args: [pick(userIds, i), `Placeholder review #${i + 1}`, buildBody(i), (i % 5) + 1, new Date(now - i * 5400000).toISOString()]
+    });
+  }
 
-  const now = Date.now();
   for (let i = 0; i < 48; i += 1) {
     const mediaType = i % 4 === 0 ? 'video' : 'image';
-    insert.run({
-      user_id: pick(userIds, i),
-      title: `Media drop #${i + 1}`,
-      description: buildBody(i + 3),
-      media_type: mediaType,
-      media_url: mediaType === 'video' ? pick(videoPool, i) : pick(imagePool, i),
-      created_at: new Date(now - i * 4100000).toISOString()
+    statements.push({
+      sql: INSERT_MEDIA_SQL,
+      args: [
+        pick(userIds, i),
+        `Media drop #${i + 1}`,
+        buildBody(i + 3),
+        mediaType,
+        mediaType === 'video' ? pick(videoPool, i) : pick(imagePool, i),
+        new Date(now - i * 4100000).toISOString()
+      ]
     });
   }
-}
 
-function insertFakeProfileComments(db) {
-  const users = db.prepare('SELECT id FROM users ORDER BY id').all();
-  const insert = db.prepare(`
-    INSERT INTO profile_comments (profile_user_id, author_user_id, body, created_at)
-    VALUES (@profile_user_id, @author_user_id, @body, @created_at)
-  `);
-
-  const now = Date.now();
-  for (let i = 0; i < users.length * 4; i += 1) {
-    const profileUser = users[i % users.length];
-    const author = users[(i + 1) % users.length];
-
-    insert.run({
-      profile_user_id: profileUser.id,
-      author_user_id: author.id,
-      body: `Profile board note #${i + 1}. ${buildBody(i + 2)}`,
-      created_at: new Date(now - i * 2300000).toISOString()
+  for (let i = 0; i < userIds.length * 4; i += 1) {
+    statements.push({
+      sql: INSERT_PROFILE_COMMENT_SQL,
+      args: [
+        userIds[i % userIds.length],
+        userIds[(i + 1) % userIds.length],
+        `Profile board note #${i + 1}. ${buildBody(i + 2)}`,
+        new Date(now - i * 2300000).toISOString()
+      ]
     });
   }
+
+  return statements;
 }
 
-function seedIfNeeded(db) {
-  const existingUsers = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
-  if (existingUsers > 0) {
+async function seedIfNeeded(db) {
+  const existing = await db.get('SELECT COUNT(*) AS count FROM users');
+  if (existing && existing.count > 0) {
     return false;
   }
 
-  const transaction = db.transaction(() => {
-    insertFakeUsers(db);
-    insertFakeThreads(db);
-    insertFakeReviews(db);
-    insertFakeMedia(db);
-    insertFakeProfileComments(db);
-  });
-
-  transaction();
+  const now = Date.now();
+  await db.batch(buildUserStatements(now));
+  const userIds = (await db.all('SELECT id FROM users ORDER BY id')).map((row) => row.id);
+  await db.batch(buildThreadStatements(userIds, now));
+  const threadIds = (await db.all('SELECT id FROM threads ORDER BY id')).map((row) => row.id);
+  await db.batch(buildContentStatements(userIds, threadIds, now));
   return true;
 }
 
 module.exports = {
-  seedIfNeeded
+  seedIfNeeded,
+  buildUserStatements,
+  buildThreadStatements,
+  buildContentStatements
 };
